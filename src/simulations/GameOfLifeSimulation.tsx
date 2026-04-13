@@ -17,6 +17,7 @@ export default function GameOfLifeSimulation() {
   const [running, setRunning] = useState(false);
   const [generation, setGeneration] = useState(0);
   const [speed, setSpeed] = useState(100);
+  const [chaos, setChaos] = useState(0); // 0 to 0.001 (0.1%)
   const runningRef = useRef(running);
   runningRef.current = running;
 
@@ -30,6 +31,11 @@ export default function GameOfLifeSimulation() {
       setGrid((g) => {
         return g.map((row, i) => {
           return row.map((cell, j) => {
+            // Apply Chaos/Entropy: Randomly flip state
+            if (chaos > 0 && Math.random() < chaos) {
+              return cell === 1 ? 0 : 1;
+            }
+
             let neighbors = 0;
             for (let x = -1; x <= 1; x++) {
               for (let y = -1; y <= 1; y++) {
@@ -55,7 +61,7 @@ export default function GameOfLifeSimulation() {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [running, speed]);
+  }, [running, speed, chaos]);
 
   // Canvas rendering
   useEffect(() => {
@@ -120,30 +126,69 @@ export default function GameOfLifeSimulation() {
     setGrid(Array.from(Array(ROWS), () => Array(COLS).fill(0)));
   };
 
-  const loadPreset = (type: 'glider' | 'pulsar') => {
+  const loadPreset = (type: 'glider' | 'pulsar' | 'acorn') => {
     setRunning(false);
     setGeneration(0);
-    const newGrid = Array.from(Array(ROWS), () => Array(COLS).fill(0));
+    // Start with a very sparse "primordial soup" (0.5% noise) to ensure interaction
+    const newGrid = Array.from(Array(ROWS), () => 
+      Array.from(Array(COLS), () => (Math.random() > 0.995 ? 1 : 0))
+    );
+    
     if (type === 'glider') {
-      const r = 10, c = 10;
-      newGrid[r][c+1] = 1;
-      newGrid[r+1][c+2] = 1;
-      newGrid[r+2][c] = 1;
-      newGrid[r+2][c+1] = 1;
-      newGrid[r+2][c+2] = 1;
-    } else if (type === 'pulsar') {
-      const r = 20, c = 35;
-      const points = [
-        [r-1, c-2], [r-1, c-3], [r-1, c-4], [r-1, c+2], [r-1, c+3], [r-1, c+4],
-        [r+1, c-2], [r+1, c-3], [r+1, c-4], [r+1, c+2], [r+1, c+3], [r+1, c+4],
-        [r-2, c-1], [r-3, c-1], [r-4, c-1], [r-2, c+1], [r-3, c+1], [r-4, c+1],
-        [r+2, c-1], [r+3, c-1], [r+4, c-1], [r+2, c+1], [r+3, c+1], [r+4, c+1],
-        [r-6, c-2], [r-6, c-3], [r-6, c-4], [r-6, c+2], [r-6, c+3], [r-6, c+4],
-        [r+6, c-2], [r+6, c-3], [r+6, c-4], [r+6, c+2], [r+6, c+3], [r+6, c+4],
-        [r-2, c-6], [r-3, c-6], [r-4, c-6], [r-2, c+6], [r-3, c+6], [r-4, c+6],
-        [r+2, c-6], [r+3, c-6], [r+4, c-6], [r+2, c+6], [r+3, c+6], [r+4, c+6],
+      // Multiple gliders heading for collision
+      const gliders = [
+        { r: 5, c: 5, dr: 1, dc: 1 },
+        { r: 5, c: COLS - 10, dr: 1, dc: -1 },
+        { r: ROWS - 10, c: 5, dr: -1, dc: 1 },
+        { r: ROWS - 10, c: COLS - 10, dr: -1, dc: -1 }
       ];
-      points.forEach(([pr, pc]) => { if (newGrid[pr]) newGrid[pr][pc] = 1; });
+      
+      gliders.forEach(({ r, c, dr, dc }) => {
+        // Standard glider shape adjusted for direction
+        if (dr === 1 && dc === 1) {
+          newGrid[r][c+1] = 1; newGrid[r+1][c+2] = 1; newGrid[r+2][c] = 1; newGrid[r+2][c+1] = 1; newGrid[r+2][c+2] = 1;
+        } else if (dr === 1 && dc === -1) {
+          newGrid[r][c-1] = 1; newGrid[r+1][c-2] = 1; newGrid[r+2][c] = 1; newGrid[r+2][c-1] = 1; newGrid[r+2][c-2] = 1;
+        } else if (dr === -1 && dc === 1) {
+          newGrid[r][c+1] = 1; newGrid[r-1][c+2] = 1; newGrid[r-2][c] = 1; newGrid[r-2][c+1] = 1; newGrid[r-2][c+2] = 1;
+        } else {
+          newGrid[r][c-1] = 1; newGrid[r-1][c-2] = 1; newGrid[r-2][c] = 1; newGrid[r-2][c-1] = 1; newGrid[r-2][c-2] = 1;
+        }
+      });
+    } else if (type === 'pulsar') {
+      // Four pulsars in a grid
+      const centers = [
+        { r: 15, c: 25 }, { r: 15, c: 55 },
+        { r: 35, c: 25 }, { r: 35, c: 55 }
+      ];
+      
+      centers.forEach(({ r, c }) => {
+        const points = [
+          [r-1, c-2], [r-1, c-3], [r-1, c-4], [r-1, c+2], [r-1, c+3], [r-1, c+4],
+          [r+1, c-2], [r+1, c-3], [r+1, c-4], [r+1, c+2], [r+1, c+3], [r+1, c+4],
+          [r-2, c-1], [r-3, c-1], [r-4, c-1], [r-2, c+1], [r-3, c+1], [r-4, c+1],
+          [r+2, c-1], [r+3, c-1], [r+4, c-1], [r+2, c+1], [r+3, c+1], [r+4, c+1],
+          [r-6, c-2], [r-6, c-3], [r-6, c-4], [r-6, c+2], [r-6, c+3], [r-6, c+4],
+          [r+6, c-2], [r+6, c-3], [r+6, c-4], [r+6, c+2], [r+6, c+3], [r+6, c+4],
+          [r-2, c-6], [r-3, c-6], [r-4, c-6], [r-2, c+6], [r-3, c+6], [r-4, c+6],
+          [r+2, c-6], [r+3, c-6], [r+4, c-6], [r+2, c+6], [r+3, c+6], [r+4, c+6],
+        ];
+        points.forEach(([pr, pc]) => { if (newGrid[pr] && newGrid[pr][pc] !== undefined) newGrid[pr][pc] = 1; });
+      });
+    } else if (type === 'acorn') {
+      // The Acorn: A famous methuselah that grows for 5206 generations
+      const r = 25, c = 40;
+      // Acorn pattern: 
+      // . X . . . . .
+      // . . . X . . .
+      // X X . . X X X
+      newGrid[r][c] = 1;
+      newGrid[r+1][c+1] = 1;
+      newGrid[r-1][c-1] = 1;
+      newGrid[r-1][c-2] = 1;
+      newGrid[r+1][c-2] = 1;
+      newGrid[r+1][c-1] = 1;
+      newGrid[r+1][c+2] = 1;
     }
     setGrid(newGrid);
   };
@@ -191,10 +236,25 @@ export default function GameOfLifeSimulation() {
             PULSAR
           </button>
           <button 
+            onClick={() => loadPreset('acorn')}
+            className="px-4 py-1 text-xs font-mono border border-white/20 hover:border-accent transition-all"
+          >
+            ACORN
+          </button>
+          <button 
             onClick={randomize}
             className="px-4 py-1 text-xs font-mono border border-white/20 hover:border-accent transition-all"
           >
             RANDOMIZE
+          </button>
+          <button 
+            onClick={() => {
+              setGrid(prev => prev.map(row => row.map(cell => (Math.random() > 0.98 ? (cell ? 0 : 1) : cell))));
+            }}
+            className="px-4 py-1 text-xs font-mono border border-accent/30 text-accent hover:bg-accent/10 transition-all"
+            title="Inject 2% random noise into the current state"
+          >
+            PERTURB
           </button>
         </div>
       </div>
@@ -222,11 +282,26 @@ export default function GameOfLifeSimulation() {
               <span>SLOW (500ms)</span>
             </div>
           </div>
+          <div className="flex flex-col gap-1 flex-1 min-w-[120px]">
+            <label className="text-[10px] uppercase tracking-tighter opacity-50 text-accent">Chaos / Entropy (Random Flips)</label>
+            <input 
+              type="range" min="0" max="0.005" step="0.0001" 
+              value={chaos} 
+              onChange={(e) => setChaos(parseFloat(e.target.value))}
+              className="accent-accent w-full"
+            />
+            <div className="flex justify-between text-[8px] font-mono opacity-30">
+              <span>ORDER (0%)</span>
+              <span>CHAOS (0.5%)</span>
+            </div>
+          </div>
         </div>
       </div>
       <div className="p-4 bg-white/5 rounded-lg border border-white/5">
         <p className="text-sm leading-relaxed opacity-80">
-          <strong className="text-accent">Principle:</strong> Cellular Automata demonstrate how simple binary states (alive/dead) and neighbor-based rules can lead to self-organizing structures, oscillators, and even universal computation. This mirrors biological growth and chemical reaction-diffusion patterns.
+          <strong className="text-accent">Principle:</strong> Cellular Automata demonstrate how simple binary states and neighbor-based rules lead to self-organizing structures. 
+          <br /><br />
+          <span className="text-accent/70 italic">Note: Use the <strong>Chaos</strong> slider to introduce "Cosmic Radiation" (entropy), preventing the system from reaching a static equilibrium. Use <strong>Perturb</strong> to manually inject noise and trigger new waves of emergence.</span>
         </p>
       </div>
     </div>

@@ -58,7 +58,14 @@ export default function App() {
           <div className="w-px h-8 bg-white/10" />
           <div className="flex gap-4">
             <Info className="w-5 h-5 opacity-40 hover:opacity-100 cursor-pointer transition-opacity" />
-            <Github className="w-5 h-5 opacity-40 hover:opacity-100 cursor-pointer transition-opacity" />
+            <a 
+              href="https://github.com/redocdm/emergent-worlds" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="opacity-40 hover:opacity-100 transition-opacity"
+            >
+              <Github className="w-5 h-5" />
+            </a>
           </div>
         </div>
       </header>
